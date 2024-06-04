@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add User</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #chatContainer {
+            width: 400px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chatHeader {
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #chatbox {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #e9ecef;
+        }
+
+        #userInputContainer {
+            display: flex;
+            border-top: 1px solid #ccc;
+            padding: 15px;
+            background-color: #f5f5f5;
+        }
+
+        #userInput {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .message {
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            display: inline-block;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .user {
+            background-color: #d1e7dd;
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .bot {
+            background-color: #f8d7da;
+            align-self: flex-start;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div id="chatContainer">
+        <div id="chatHeader">Chatbot</div>
+        <div id="chatbox"></div>
+        <div id="userInputContainer">
+            <input type="text" id="userInput" placeholder="Type your message here..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let chatbox = document.getElementById('chatbox');
+        let userInput = document.getElementById('userInput');
+        let userData = {};
+        let currentStep = 0;
+
+        const questions = [
+            'Please provide your name:',
+            'Please provide your city:',
+            'Please provide your phone number:',
+            'Please provide your email:',
+            'Please provide your age:'
+        ];
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function sendMessage() {
+            let message = userInput.value;
+            if (message.trim() !== '') {
+                appendMessage('User', message);
+                processMessage(message);
+                userInput.value = '';
+            }
+        }
+
+        function appendMessage(sender, message) {
+            let messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            messageElement.className = 'message ' + sender.toLowerCase();
+            chatbox.appendChild(messageElement);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        function processMessage(message) {
+            let isValid = validateInput(message, currentStep);
+
+            if (!isValid) {
+                appendMessage('Bot', 'Thank you for giving your time. Please try again.');
+                resetChat();
+                return;
+            }
+
+            if (currentStep === 0) {
+                userData.name = message;
+            } else if (currentStep === 1) {
+                userData.city = message;
+            } else if (currentStep === 2) {
+                userData.phone_number = message;
+            } else if (currentStep === 3) {
+                userData.email = message;
+            } else if (currentStep === 4) {
+                userData.age = parseInt(message, 10);
+                appendMessage('Bot', 'Thank you! Saving your data...');
+                saveData(userData);
+                return;
+            }
+
+            currentStep++;
+            if (currentStep < questions.length) {
+                appendMessage('Bot', questions[currentStep]);
+            }
+        }
+
+        function validateInput(input, step) {
+            if (step === 2) {
+                const phonePattern = /^[0-9]{10}$/;
+                return phonePattern.test(input);
+            } else if (step === 3) {
+                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return emailPattern.test(input);
+            } else if (step === 4) {
+                const age = parseInt(input, 10);
+                return !isNaN(age) && age > 0 && age < 120;
+            }
+            return true;
+        }
+
+        function saveData(data) {
+            fetch('http://127.0.0.1:5000/add_user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams(data).toString()
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage('Bot', data.message);
+                resetChat();
+            })
+            .catch(error => {
+                appendMessage('Bot', 'Error saving data');
+                console.error('Error:', error);
+                resetChat();
+            });
+        }
+
+        function resetChat() {
+            userData = {};
+            currentStep = 0;
+            chatbox.innerHTML = '';
+            document.body.style.backgroundColor = 'black';
+            appendMessage('Bot', questions[0]);
+        }
+
+        // Start the conversation
+        appendMessage('Bot', questions[0]);
+    </script>
+</body>
+</html>
